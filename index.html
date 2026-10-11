@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07040f">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Mind Reader: think of a number from 1 to 16, answer Left or Right, and watch the orbs name your number.">
+<meta property="og:title" content="Mind Reader">
+<meta property="og:description" content="Think of a number. Answer Left or Right. I'll read your mind.">
+<title>Mind Reader</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔮%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07040f; --ink:#ece8ff; --muted:#a99fd6; --violet:#a78bfa; --gold:#fbbf24;
+  --line:rgba(167,139,250,.28); --panel:rgba(255,255,255,.05);
+  --display:"Cinzel",Georgia,"Times New Roman",serif;
+  --app-h:100vh; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg)}
+body{background-image:radial-gradient(ellipse at 50% 30%,#2b1459 0%,#140a2e 45%,#07040f 100%);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;touch-action:manipulation;
+  -webkit-user-select:none;user-select:none}
+button{touch-action:manipulation}
+.hidden{display:none!important}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* ============ INTRO ============ */
+#intro{position:fixed;inset:0;z-index:50;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#2b1459 0%,#140a2e 46%,#06030d 100%);transition:opacity .9s ease}
+#intro.gone{opacity:0;pointer-events:none}
+#ic{position:absolute;inset:0;width:100%;height:100%;display:block}
+#veil{position:absolute;inset:0;background:#000;pointer-events:none}
+.cap{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 8%);padding:0 20px;text-align:center;opacity:0;transform:translate3d(0,14px,0);transition:opacity .22s ease,transform .22s ease;pointer-events:none}
+.cap.on{opacity:1;transform:none;transition:opacity .6s ease .26s,transform .6s ease .26s}
+.cap h2{margin:0;font-family:var(--display);font-weight:600;letter-spacing:.04em;font-size:clamp(1.25rem,min(4.8vw,6.2vh),2.7rem);line-height:1.2;color:#f5edff;text-shadow:0 0 22px rgba(167,139,250,.85),0 0 50px rgba(124,58,237,.45)}
+.cap h2 b{color:#fbbf24;text-shadow:0 0 22px rgba(251,191,36,.85)}
+.cap p{margin:8px 0 0;font-size:clamp(.88rem,min(2.4vw,3vh),1.2rem);color:#c4b5fd}
+.chip{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 11%);transform:translate3d(-50%,12px,0) scale(.9);padding:.5em 1.4em;border-radius:999px;font-family:var(--display);font-weight:700;letter-spacing:.18em;font-size:clamp(.95rem,min(3vw,4vh),1.4rem);color:#1a1033;background:linear-gradient(135deg,#fde68a,#fbbf24);box-shadow:0 0 28px rgba(251,191,36,.6);opacity:0;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1.3);pointer-events:none;white-space:nowrap}
+.chip.on{opacity:1;transform:translate3d(-50%,0,0) scale(1)}
+.tcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 16px;opacity:0;transform:scale(.94);transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.9,.2,1);pointer-events:none}
+.tcard.on{opacity:1;transform:none}
+.tcard h1,.logo{margin:0;font-family:var(--display);font-weight:700;letter-spacing:.12em;background:linear-gradient(90deg,#fde68a,#c4b5fd 50%,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 20px rgba(167,139,250,.65))}
+.tcard h1{font-size:clamp(1.5rem,min(8vw,13vh),5.2rem);white-space:nowrap}
+.tcard p{margin:12px 0 0;font-size:clamp(.95rem,min(3vw,4vh),1.5rem);color:#d8ccff;letter-spacing:.06em}
+#prog{position:absolute;left:0;right:0;bottom:env(safe-area-inset-bottom,0px);height:3px;background:rgba(255,255,255,.08)}
+#prog i{display:block;height:100%;width:100%;transform:scaleX(0);transform-origin:0 50%;background:linear-gradient(90deg,#8b5cf6,#fbbf24)}
+#skip{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);font:inherit;font-size:.85rem;color:#d8ccff;background:rgba(40,25,80,.7);border:1px solid var(--line);border-radius:999px;padding:11px 18px;min-height:44px;cursor:pointer}
+#skip:hover{background:rgba(70,45,130,.8)}
+
+/* ============ GAME SHELL (fits the screen, never scrolls) ============ */
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#game{position:fixed;left:0;right:0;top:0;height:var(--app-h);z-index:1;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) max(14px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(14px,env(safe-area-inset-left,0px))}
+.top{flex:none;height:38px;display:flex;align-items:center;justify-content:center;position:relative}
+.brand{font-family:var(--display);letter-spacing:.32em;font-size:.74rem;color:var(--violet)}
+#help{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--violet);font:700 1rem var(--display);cursor:pointer}
+#screens{flex:1;min-height:0;width:100%;max-width:1200px;margin:0 auto;position:relative}
+.screen{position:absolute;inset:0;display:none;min-height:0}
+.screen.show{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
+
+/* --- start screen --- */
+#sStart.show{display:flex;flex-direction:column;justify-content:center;gap:clamp(8px,2.2vh,20px);padding:0 2px 6px}
+.logo{text-align:center;white-space:nowrap;font-size:clamp(1.5rem,min(8.6vw,7.5vh),4.8rem)}
+.lead{text-align:center;color:var(--muted);font-size:clamp(.88rem,2.3vh,1.3rem);line-height:1.5;max-width:520px;margin:6px auto 0}
+.strip{--s:min(30px,8vw);display:none;grid-template-columns:repeat(8,var(--s));gap:min(8px,1.6vw);justify-content:center;margin:clamp(10px,2.2vh,18px) auto 0}
+.strip .orb{position:relative;left:auto;top:auto;transform:none;animation:float 3.6s ease-in-out infinite}
+.strip .orb:nth-child(2n){animation-delay:-1.2s}.strip .orb:nth-child(3n){animation-delay:-2.1s}
+@keyframes float{0%,100%{translate:0 0}50%{translate:0 -5px}}
+@media (orientation:portrait) and (min-height:700px){.strip{display:grid}}
+.steps3{display:flex;flex-direction:column;gap:clamp(6px,1.4vh,10px)}
+.st{display:grid;grid-template-columns:30px 1fr;gap:1px 12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:clamp(7px,1.4vh,11px) 13px}
+.st b{grid-row:span 2;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;font-size:.85rem}
+.st h3{margin:0;font-family:var(--display);letter-spacing:.08em;font-size:clamp(.9rem,2.2vh,1.15rem);color:#f1e9ff}
+.st p{margin:0;color:var(--muted);font-size:clamp(.78rem,1.9vh,1.05rem);line-height:1.35}
+.cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* --- play screen --- */
+#sPlay.show{display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"info" "stage" "act";gap:4px}
+.info{grid-area:info;text-align:center;padding-top:2px}
+#stage{grid-area:stage;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;position:relative}
+#actions{grid-area:act;min-height:54px;padding:2px 0 8px;align-items:center}
+.dots{display:flex;gap:9px;justify-content:center;margin:0 0 4px}
+.dot{width:clamp(26px,3.4vh,34px);height:clamp(26px,3.4vh,34px);border-radius:50%;display:grid;place-items:center;font-size:.75rem;border:1px solid var(--line);color:var(--muted);transition:all .4s}
+.dot.now{border-color:var(--gold);color:var(--gold);box-shadow:0 0 12px rgba(251,191,36,.5)}
+.dot.done{background:var(--violet);border-color:var(--violet);color:#1a1033}
+#qTitle{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(1rem,min(4.8vw,3.2vh),2rem);min-height:1.3em;letter-spacing:.03em;white-space:nowrap}
+#qTitle b{color:var(--gold);text-shadow:0 0 16px rgba(251,191,36,.7)}
+#qSub{margin:3px auto 0;color:var(--muted);min-height:2.7em;max-width:560px;line-height:1.35;font-size:clamp(.8rem,2vh,1.15rem)}
+#board{position:relative;flex:none;--s:44px}
+.plate{position:absolute;top:0;border-radius:20px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(167,139,250,.14),rgba(167,139,250,.03));box-shadow:inset 0 0 26px rgba(124,58,237,.18)}
+.plate span{position:absolute;top:9px;left:0;right:0;text-align:center;font-family:var(--display);font-size:.66rem;letter-spacing:.28em;color:var(--violet)}
+
+.orb{position:absolute;left:0;top:0;width:var(--s);height:var(--s);border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:calc(var(--s)*.42);line-height:1;color:#1a1033;will-change:transform;
+  background:radial-gradient(circle at 32% 28%,#fff 0,var(--hi) 20%,var(--c) 58%,var(--lo) 100%);
+  box-shadow:0 0 calc(var(--s)*.3) var(--g1),0 0 calc(var(--s)*.8) var(--g2),inset 0 -3px 6px rgba(0,0,0,.25);transition:opacity .6s ease}
+.orb.c0{--hi:#bbf7d0;--c:#34d399;--lo:#047857;--g1:rgba(52,211,153,.75);--g2:rgba(52,211,153,.28)}
+.orb.c1{--hi:#fef08a;--c:#fbbf24;--lo:#b45309;--g1:rgba(251,191,36,.75);--g2:rgba(251,191,36,.28)}
+.orb.c2{--hi:#a5f3fc;--c:#22d3ee;--lo:#0e7490;--g1:rgba(34,211,238,.75);--g2:rgba(34,211,238,.28)}
+.orb.c3{--hi:#fecdd3;--c:#fb7185;--lo:#be123c;--g1:rgba(251,113,133,.75);--g2:rgba(251,113,133,.28)}
+.orb.dim{opacity:.07}
+.orb.hero{z-index:6;box-shadow:0 0 40px var(--g1),0 0 110px var(--g1),inset 0 -3px 6px rgba(0,0,0,.25)}
+.orb.hero::after{content:"";position:absolute;inset:-9%;border-radius:50%;border:2px solid var(--g1);animation:ringPulse 1.6s ease-out infinite}
+@keyframes ringPulse{from{transform:scale(1);opacity:.9}to{transform:scale(1.5);opacity:0}}
+
+.btn{font:inherit;font-weight:700;font-size:clamp(1rem,2.2vh,1.25rem);letter-spacing:.02em;border:0;cursor:pointer;border-radius:999px;padding:0 26px;min-height:clamp(48px,6vh,64px);color:#1a1033;background:linear-gradient(135deg,#fde68a,#fbbf24);box-shadow:0 6px 22px rgba(251,191,36,.32),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .15s,opacity .2s}
+.btn:hover:not(:disabled){transform:translateY(-2px)}
+.btn:active:not(:disabled){transform:none}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.btn.side{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;box-shadow:0 6px 22px rgba(124,58,237,.45);min-width:150px}
+.btn.good{background:linear-gradient(135deg,#6ee7b7,#10b981);color:#052e16;box-shadow:0 6px 22px rgba(16,185,129,.35)}
+.btn.warn{background:linear-gradient(135deg,#fda4af,#fb7185);color:#4c0519;box-shadow:0 6px 22px rgba(251,113,133,.3)}
+#actions{flex-wrap:nowrap}
+#actions .btn{flex:1 1 0;min-width:0;max-width:240px;padding:0 14px;white-space:nowrap}
+
+/* --- landscape (desktop, laptop, phone on its side): board left, controls right --- */
+@media (orientation:landscape) and (min-aspect-ratio:5/4){
+  #sStart.show{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-content:center;align-items:center;column-gap:clamp(18px,4vw,48px);row-gap:clamp(8px,2vh,16px)}
+  #sStart .startA{grid-column:1}
+  #sStart .steps3{grid-column:2;grid-row:1}
+  .logo{font-size:clamp(1.6rem,min(3.4vw,7vh),3.2rem)}
+  .lead{margin-left:auto;margin-right:auto}
+  #sPlay.show{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"stage info" "stage act";gap:0 clamp(14px,3vw,36px)}
+  .info{align-self:end;padding-bottom:8px}
+  #actions{align-self:start;padding-top:8px;align-content:flex-start}
+}
+.credits{position:absolute;left:-7px;top:50%;transform:translateY(-50%);display:flex}
+.credits a{display:grid;place-items:center;width:30px;height:34px;color:var(--violet);opacity:.4;transition:opacity .2s}
+.credits a:hover,.credits a:focus-visible{opacity:1}
+.credits svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:460px){.brand{display:none}}
+@media (max-height:600px){.brand{display:none}.top{height:34px}}
+@media (max-height:520px) and (orientation:portrait){.lead{display:none}}
+
+/* --- how-it-works pop-up --- */
+#modal{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(5,2,15,.78)}
+#modal.show{display:flex}
+.mcard{max-width:460px;max-height:90%;overflow:auto;background:#1a1236;border:1px solid var(--line);border-radius:18px;padding:20px 22px;-webkit-user-select:text;user-select:text}
+.mcard h3{margin:0 0 8px;font-family:var(--display);letter-spacing:.06em;color:#f1e9ff}
+.mcard p{margin:0 0 14px;color:var(--muted);line-height:1.55;font-size:.95rem}
+.mcard .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#vOut{color:var(--muted);font-size:.88rem}
+@media (prefers-reduced-motion:reduce){.strip .orb{animation:none}.orb.hero::after{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<!-- ======= 20-SECOND INTRO ======= -->
+<section id="intro" aria-label="Mind Reader intro">
+  <canvas id="ic"></canvas>
+  <div id="veil"></div>
+  <div id="caps"></div>
+  <div id="chips"></div>
+  <div class="tcard" id="tcard"><h1>MIND READER</h1><p>Left or right? That’s all it takes.</p></div>
+  <div id="prog"><i id="progbar"></i></div>
+  <button id="skip" type="button">Skip intro ›</button>
+</section>
+
+<!-- ======= GAME ======= -->
+<main id="game" class="hidden">
+  <header class="top">
+    <nav class="credits" aria-label="Creator links">
+      <a href="https://unstopablethinkerr.github.io/bio/" target="_blank" rel="noopener noreferrer" title="Bio website" aria-label="Bio website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg></a>
+      <a href="https://www.linkedin.com/in/bala-santhoshb" target="_blank" rel="noopener noreferrer" title="LinkedIn" aria-label="LinkedIn profile"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 10.5V17M8 7.2v.01M12 17v-3.6a2.4 2.4 0 014.8 0V17M12 10.5V17"/></svg></a>
+      <a href="https://www.instagram.com/unstopablethinker/" target="_blank" rel="noopener noreferrer" title="Instagram @unstopablethinker" aria-label="Instagram @unstopablethinker"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6"/></svg></a>
+    </nav>
+    <span class="brand">✦ MIND READER ✦</span>
+    <button id="help" type="button" aria-label="How does it work?">?</button>
+  </header>
+  <div id="screens">
+    <section id="sStart" class="screen">
+      <div class="startA">
+        <h1 class="logo">MIND READER</h1>
+        <p class="lead">Think of a number from 1 to 16. Tap Left or Right a few times. Then watch me name your number.</p>
+        <div class="strip" id="strip" aria-hidden="true"></div>
+        <div class="cta" style="margin-top:clamp(10px,2.4vh,20px)">
+          <button id="begin" class="btn" type="button">Begin the magic</button>
+          <button id="replay" class="btn ghost" type="button">▶ Watch the intro</button>
+        </div>
+      </div>
+      <div class="steps3">
+        <div class="st"><b>1</b><h3>THINK</h3><p>Silently pick one of the 16 orbs. Never say it aloud.</p></div>
+        <div class="st"><b>2</b><h3>ANSWER</h3><p>As they shuffle, say if yours is in the left or right column.</p></div>
+        <div class="st"><b>3</b><h3>REVEAL</h3><p>I read your mind and name your number.</p></div>
+      </div>
+    </section>
+
+    <section id="sPlay" class="screen">
+      <div class="info">
+        <div class="dots" id="dots"></div>
+        <h2 id="qTitle" aria-live="polite"></h2>
+        <p id="qSub"></p>
+      </div>
+      <div id="stage"><div id="board"></div></div>
+      <div id="actions" class="cta"></div>
+    </section>
+  </div>
+</main>
+
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="mh">
+  <div class="mcard">
+    <h3 id="mh">How does it work?</h3>
+    <p>Each shuffle weaves the two columns together, so the column you name decides where your orb lands next. After three shuffles, every orb has followed its own unique trail of Left and Right answers, and the final column answer settles which of the last two orbs is yours. Four Left/Right answers make 2 × 2 × 2 × 2 = 16 possibilities, exactly the number of orbs.</p>
+    <div class="row"><button id="verify" class="btn ghost" type="button">Test all 16 numbers</button><span id="vOut"></span></div>
+    <div class="row" style="margin-top:14px"><button id="closeModal" class="btn" type="button">Close</button></div>
+  </div>
+</div>
+
+<noscript><p style="position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#07040f;color:#ece8ff;font-family:sans-serif;padding:24px;text-align:center">Mind Reader needs JavaScript. Please enable it and reload.</p></noscript>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease3 = t => 1 - Math.pow(1 - t, 3);
+const ease2 = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------------- the trick (rule from the spreadsheet) ----------------
+   Read each column from the bottom up. Take one orb from the OTHER column,
+   then one from the CHOSEN column, row by row. First 8 become the new left
+   column, last 8 the new right column. */
+const START = Array.from({ length: 16 }, (_, i) => i + 1);
+function step(st, choice) {
+  const L = st.slice(0, 8), R = st.slice(8);
+  const C = (choice === 'L' ? L : R).slice().reverse();
+  const O = (choice === 'L' ? R : L).slice().reverse();
+  const seq = [];
+  for (let i = 0; i < 8; i++) seq.push(O[i], C[i]);
+  return seq;
+}
+const TL = 5, TR = 13; // third from the bottom: left / right column
+const colorIdx = id => id <= 8 ? (id % 2 ? 0 : 1) : (id % 2 ? 2 : 3);
+const PAL = [
+  { hi: '#bbf7d0', c: '#34d399', lo: '#047857', g: '52,211,153' },
+  { hi: '#fef08a', c: '#fbbf24', lo: '#b45309', g: '251,191,36' },
+  { hi: '#a5f3fc', c: '#22d3ee', lo: '#0e7490', g: '34,211,238' },
+  { hi: '#fecdd3', c: '#fb7185', lo: '#be123c', g: '251,113,133' }
+];
+
+/* ---------------- demo run used by the intro ---------------- */
+const DEMO = 11;
+const STATES = [START.slice()], ANS = [];
+(() => { let st = START.slice(); for (let r = 0; r < 3; r++) { const c = st.indexOf(DEMO) < 8 ? 'L' : 'R'; ANS.push(c); st = step(st, c); STATES.push(st); } })();
+const FINAL_COL = STATES[3].indexOf(DEMO) < 8 ? 'L' : 'R';
+const HERO = DEMO;
+
+/* ---------------- canvases, sprites, particles ---------------- */
+const ic = $('ic'), ictx = ic.getContext('2d'), bgc = $('bg'), bctx = bgc.getContext('2d');
+let W = window.innerWidth, H = window.innerHeight, DPR = 1, dprCap = 2;
+const M = {};
+function metrics() {
+  const m = Math.min(W, H);
+  M.cx = W / 2; M.cy = H * 0.5;
+  M.R = Math.min(W * 0.36, H * 0.28);
+  M.rr = clamp(M.R * 0.17, 12, 34);
+  M.sp = Math.min(H * 0.075, 74);
+  M.cr = clamp(Math.min(M.sp * 0.42, W * 0.06), 10, 31);
+  M.dx = Math.min(W * 0.2, 150);
+  M.hr = Math.min(m * 0.17, 150);
+}
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, dprCap);
+  W = window.innerWidth; H = window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', H + 'px');
+  [ic, bgc].forEach(c => { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+  ictx.setTransform(DPR, 0, 0, DPR, 0, 0); bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  metrics();
+}
+let resizeQueued = false;
+function onResize() { if (resizeQueued) return; resizeQueued = true; requestAnimationFrame(() => { resizeQueued = false; resize(); }); }
+
+const glowCache = {};
+function glow(h) {
+  const k = Math.round(h / 10) * 10;
+  if (glowCache[k]) return glowCache[k];
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, `hsla(${k},95%,78%,1)`); g.addColorStop(.35, `hsla(${k},90%,62%,.45)`); g.addColorStop(1, `hsla(${k},90%,55%,0)`);
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return glowCache[k] = c;
+}
+const SP = 160, CORE = 34;
+const orbSprites = PAL.map(p => {
+  const c = document.createElement('canvas'); c.width = c.height = SP;
+  const x = c.getContext('2d'), m = SP / 2;
+  let g = x.createRadialGradient(m, m, 10, m, m, m);
+  g.addColorStop(0, `rgba(${p.g},.7)`); g.addColorStop(.45, `rgba(${p.g},.2)`); g.addColorStop(1, `rgba(${p.g},0)`);
+  x.fillStyle = g; x.fillRect(0, 0, SP, SP);
+  g = x.createRadialGradient(m - 10, m - 12, 2, m, m, CORE);
+  g.addColorStop(0, '#fff'); g.addColorStop(.25, p.hi); g.addColorStop(.65, p.c); g.addColorStop(1, p.lo);
+  x.fillStyle = g; x.beginPath(); x.arc(m, m, CORE, 0, Math.PI * 2); x.fill();
+  return c;
+});
+function drawOrb(ctx, id, x, y, r, a) {
+  if (a <= 0.01 || r <= 0.5) return;
+  const k = r * SP / CORE;
+  ctx.globalAlpha = a;
+  ctx.drawImage(orbSprites[colorIdx(id)], x - k / 2, y - k / 2, k, k);
+  ctx.fillStyle = '#1a1033';
+  ctx.font = '800 ' + Math.round(r * 0.92) + 'px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(id), x, y + r * 0.04);
+  ctx.globalAlpha = 1;
+}
+const makeDust = n => Array.from({ length: n }, () => ({ x: Math.random(), y: Math.random(), s: 6 + Math.random() * 22, v: .01 + Math.random() * .03, ph: Math.random() * 6.28, tw: .6 + Math.random() * 1.6, h: Math.random() < .3 ? 42 : 255 + Math.random() * 50 }));
+const dustCount = base => Math.round(clamp(W * H / 11000, 28, base));
+function drawDust(ctx, arr, w, h, dt, time, k) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const p of arr) {
+    p.y -= p.v * dt * k; p.x += Math.sin(time * .4 + p.ph) * .0004 * k;
+    if (p.y < -.05) { p.y = 1.05; p.x = Math.random(); }
+    ctx.globalAlpha = clamp(.25 + .25 * Math.sin(time * p.tw + p.ph), 0, 1);
+    ctx.drawImage(glow(p.h), p.x * w - p.s / 2, p.y * h - p.s / 2, p.s, p.s);
+  }
+  ctx.restore();
+}
+function burst(arr, x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.283, v = 60 + Math.random() * 260;
+    arr.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 0, m: .9 + Math.random() * 1.1, s: 6 + Math.random() * 16, h: Math.random() < .55 ? 45 : 275 });
+  }
+}
+function drawBursts(ctx, arr, dt) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const p = arr[i]; p.l += dt;
+    if (p.l >= p.m) { arr.splice(i, 1); continue; }
+    p.vx *= .96; p.vy = p.vy * .96 + 40 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    ctx.globalAlpha = 1 - p.l / p.m;
+    ctx.drawImage(glow(p.h), p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+  }
+  ctx.restore();
+}
+
+/* ---------------- intro scene pieces ---------------- */
+function drawSigil(ctx, t, alpha) {
+  ctx.save(); ctx.translate(M.cx, M.cy); ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(196,181,253,' + alpha + ')';
+  [[1.2, [6, 10], .15], [1.4, [2, 12], -.1], [1.55, [14, 8], .06]].forEach(([k, d, s]) => {
+    ctx.save(); ctx.rotate(t * s); ctx.setLineDash(d); ctx.beginPath(); ctx.arc(0, 0, M.R * k, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  });
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  for (let i = 0; i < 48; i++) {
+    const a = i / 48 * Math.PI * 2 + t * .03, r1 = M.R * 1.62, r2 = r1 + (i % 4 ? 6 : 14);
+    ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawEye(ctx, t) {
+  const a = t < 3.4 ? clamp((t - .2) / .8) : 1 - clamp((t - 3.4) / .7);
+  if (a <= 0) return;
+  let open = ease2(clamp((t - .5) / 1.1));
+  const b = Math.abs(t - 2.6); if (b < .18) open *= clamp(b / .18, .08, 1);
+  const ew = Math.min(W * .3, 200), eh = ew * .5 * open + .001, cx = M.cx, cy = M.cy;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.beginPath(); ctx.moveTo(cx - ew, cy); ctx.quadraticCurveTo(cx, cy - eh * 2, cx + ew, cy); ctx.quadraticCurveTo(cx, cy + eh * 2, cx - ew, cy); ctx.closePath();
+  ctx.save(); ctx.clip();
+  let g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ew);
+  g.addColorStop(0, 'rgba(60,30,120,.95)'); g.addColorStop(1, 'rgba(10,5,30,.98)');
+  ctx.fillStyle = g; ctx.fillRect(cx - ew, cy - eh * 2, ew * 2, eh * 4);
+  const ix = cx + Math.sin(t * 1.3) * ew * .12, iy = cy + Math.cos(t * .9) * eh * .1, ir = ew * .3;
+  g = ctx.createRadialGradient(ix, iy, ir * .1, ix, iy, ir);
+  g.addColorStop(0, '#fff7d6'); g.addColorStop(.35, '#fbbf24'); g.addColorStop(.75, '#a855f7'); g.addColorStop(1, '#3b0764');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#0b0418'; ctx.beginPath(); ctx.arc(ix, iy, ir * .38, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(167,139,250,.22)'; ctx.lineWidth = 9; ctx.stroke();   // soft glow without shadowBlur (faster on phones)
+  ctx.strokeStyle = 'rgba(216,200,255,.95)'; ctx.lineWidth = 2.2; ctx.stroke();
+  ctx.restore();
+}
+function drawRays(ctx, t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.translate(M.cx, M.cy); ctx.globalCompositeOperation = 'lighter'; ctx.rotate(t * .25);
+  const L = Math.max(W, H) * .7, N = 10;
+  const g = ctx.createLinearGradient(0, 0, L, 0);
+  g.addColorStop(0, 'rgba(251,191,36,' + (.26 * a) + ')'); g.addColorStop(1, 'rgba(251,191,36,0)');
+  ctx.fillStyle = g;
+  for (let i = 0; i < N; i++) {
+    ctx.rotate(Math.PI * 2 / N);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, -L * .05); ctx.lineTo(L, L * .05); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawRing(ctx, t, t0) {
+  const u = t - t0; if (u < 0 || u > 1.3) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = 'rgba(251,191,36,' + (1 - u / 1.3) * .8 + ')'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(M.cx, M.cy, M.hr + u * Math.max(W, H) * .35, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
+
+/* ---------------- intro timeline ---------------- */
+const DURATION = 20;
+const MOVE = [9.3, 11.7, 14.1];   // when each of the 3 shuffles starts to move
+const H0 = 16.6;                  // hero reveal starts
+const ringPos = (id, t) => {
+  const a = (id - 1) / 16 * Math.PI * 2 - Math.PI / 2 + .22 * (t - 3.5);
+  return { x: M.cx + Math.cos(a) * M.R, y: M.cy + Math.sin(a) * M.R + Math.sin(t * 1.6 + id) * 3 };
+};
+const colPos = (k, id) => {
+  const idx = STATES[k].indexOf(id), col = idx < 8 ? 0 : 1, row = idx % 8;
+  return { x: M.cx + (col ? M.dx : -M.dx), y: M.cy + (row - 3.5) * M.sp };
+};
+function place(id, t) {
+  const st = 3.5 + (id - 1) * .09;
+  if (t < st) return null;
+  let x, y, r = M.rr, a = 1;
+  const rp = ringPos(id, t);
+  if (t < 7) {
+    const u = ease3(clamp((t - st) / 1));
+    x = lerp(M.cx, rp.x, u); y = lerp(M.cy, rp.y, u); r = M.rr * u; a = u;
+  } else {
+    const stag = (id - 1) * .012, m = ease2(clamp((t - 7 - stag) / .9)), c0 = colPos(0, id);
+    x = lerp(rp.x, c0.x, m); y = lerp(rp.y, c0.y, m); r = lerp(M.rr, M.cr, m);
+    let k = -1, u = 0;
+    for (let q = 0; q < 3; q++) { const s = MOVE[q] + STATES[q + 1].indexOf(id) * .02; if (t >= s) { k = q; u = clamp((t - s) / .95); } }
+    if (k >= 0) {
+      const A = colPos(k, id), B = colPos(k + 1, id), e = ease2(u);
+      const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
+      const amp = Math.sin(Math.PI * u) * M.sp * .6 * (id % 2 ? 1 : -1);
+      x = lerp(A.x, B.x, e) - dy / len * amp; y = lerp(A.y, B.y, e) + dx / len * amp; r = M.cr;
+    }
+  }
+  if (t >= H0) {
+    const h = ease2(clamp((t - H0) / .8));
+    if (id === HERO) {
+      x = lerp(x, M.cx, h); y = lerp(y, M.cy, h); r = lerp(M.cr, M.hr, h);
+      if (t >= 18.5) { const o = clamp((t - 18.5) / .6); r *= 1 + o * .5; a = 1 - o; }
+    } else {
+      x += (x - M.cx) * .25 * h; y += (y - M.cy) * .25 * h; a = lerp(1, .05, h);
+    }
+  }
+  return { id, x, y, r, a };
+}
+
+const CAPS = [
+  { a: .5,  b: 3.4,  h: 'What if a screen could read your mind?' },
+  { a: 3.7, b: 6.0,  h: 'Sixteen glowing orbs.', s: 'Silently choose one.' },
+  { a: 6.0, b: 7.7,  h: 'Don’t touch it. Don’t say it.', s: 'Just hold the number in your mind.' },
+  { a: 8.0, b: 10.3, h: 'Left or right?', s: 'Which column is your orb in?' },
+  { a: 10.4, b: 12.7, h: 'Again…', s: 'Left or right?' },
+  { a: 12.8, b: 15.1, h: 'Once more.', s: 'Don’t think. Just answer.' },
+  { a: 15.5, b: 16.6, h: 'One last look.', s: 'Which column is it in now?' },
+  { a: 16.9, b: 18.5, h: 'Your number is <b>' + DEMO + '</b>' }
+];
+const CHIPS = [
+  { a: 8.85, b: 10.0, c: ANS[0] }, { a: 11.25, b: 12.4, c: ANS[1] },
+  { a: 13.65, b: 14.8, c: ANS[2] }, { a: 16.0, b: 16.7, c: FINAL_COL }
+];
+const TITLE_A = 18.9;
+CAPS.forEach(c => { const d = document.createElement('div'); d.className = 'cap'; d.innerHTML = '<h2>' + c.h + '</h2>' + (c.s ? '<p>' + c.s + '</p>' : ''); $('caps').appendChild(d); c.el = d; });
+CHIPS.forEach(c => { const d = document.createElement('div'); d.className = 'chip'; d.textContent = c.c === 'L' ? '◀  LEFT' : 'RIGHT  ▶'; $('chips').appendChild(d); c.el = d; });
+const veil = $('veil'), tcard = $('tcard'), progbar = $('progbar');
+
+let dustI = [], burstsI = [], lastT = 0, fired = {}, introActive = false, introT = 0, prevNow = 0, frameN = 0, slow = 0;
+const once = (key, t, t0, fn) => { if (t >= t0 && !fired[key]) { fired[key] = true; fn(); } };
+
+function renderIntro(t) {
+  const dt = clamp(t - lastT, 0, .05); lastT = t;
+  ictx.clearRect(0, 0, W, H);
+  if (t < 1.2) veil.style.opacity = String(1 - clamp(t / .9));
+  const sig = clamp((t - 3) / 1.5) * (t < H0 ? 1 : 1 - clamp((t - H0) / .8)) * .22;
+  if (sig > 0) drawSigil(ictx, t, sig);
+  drawDust(ictx, dustI, W, H, dt, t, 1 + (t > 16.8 && t < 18.5 ? 2 : 0));
+  drawEye(ictx, t);
+  drawRays(ictx, t, clamp((t - 16.9) / .6) * (1 - clamp((t - 18.5) / .6)));
+  const list = [];
+  for (let id = 1; id <= 16; id++) { const o = place(id, t); if (o) list.push(o); }
+  list.sort((p, q) => (p.id === HERO) - (q.id === HERO));
+  for (const o of list) drawOrb(ictx, o.id, o.x, o.y, o.r, o.a);
+  drawRing(ictx, t, 17.3); drawRing(ictx, t, 17.6);
+  once('b1', t, 17.3, () => burst(burstsI, M.cx, M.cy, 70));
+  once('b2', t, TITLE_A, () => burst(burstsI, M.cx, M.cy, 44));
+  drawBursts(ictx, burstsI, dt);
+  CAPS.forEach(c => c.el.classList.toggle('on', t >= c.a && t < c.b));
+  CHIPS.forEach(c => c.el.classList.toggle('on', t >= c.a && t < c.b));
+  tcard.classList.toggle('on', t >= TITLE_A);
+  progbar.style.transform = 'scaleX(' + clamp(t / DURATION) + ')';
+}
+function introLoop(now) {
+  if (!introActive) return;
+  const dms = Math.max(0, now - prevNow); prevNow = now;
+  introT += Math.min(dms, 100) / 1000;      // a hidden tab or a long hiccup pauses the show instead of skipping it
+  frameN++;
+  // adaptive quality: if a hi-dpi phone struggles, drop to 1x resolution
+  if (frameN > 8 && dms > 34 && DPR > 1) { if (++slow > 20) { dprCap = 1; resize(); slow = 0; } } else if (slow > 0 && dms <= 34) slow--;
+  renderIntro(Math.min(introT, DURATION));
+  if (introT >= DURATION) { endIntro(); return; }
+  requestAnimationFrame(introLoop);
+}
+function playIntro() {
+  fired = {}; lastT = 0; burstsI = []; dustI = makeDust(dustCount(90)); introT = 0; frameN = 0; slow = 0;
+  const el = $('intro'); el.style.display = ''; void el.offsetWidth; el.classList.remove('gone');
+  veil.style.opacity = '1';
+  introActive = true; prevNow = performance.now();
+  requestAnimationFrame(introLoop);
+}
+function endIntro() {
+  if (!introActive) return;
+  introActive = false;
+  $('intro').classList.add('gone');
+  $('game').classList.remove('hidden');
+  if (!$('sPlay').classList.contains('show')) show('sStart'); else refit();
+  setTimeout(() => { if (!introActive) $('intro').style.display = 'none'; }, 950);
+}
+
+/* background particles behind the game (light on purpose) */
+let dustB = [], burstsB = [], lastB = performance.now();
+function bgLoop(now) {
+  const dt = Math.min(.05, (now - lastB) / 1000); lastB = now;
+  if (!introActive && !document.hidden) { bctx.clearRect(0, 0, W, H); drawDust(bctx, dustB, W, H, dt, now / 1000, 1); drawBursts(bctx, burstsB, dt); }
+  requestAnimationFrame(bgLoop);
+}
+
+/* ---------------- game UI ---------------- */
+const board = $('board'), stage = $('stage'), orbs = {};
+const G = { phase: 'idle', state: START.slice(), answers: [], busy: false, hero: null };
+let BM = null;
+
+function show(id) { ['sStart', 'sPlay'].forEach(s => $(s).classList.toggle('show', s === id)); }
+function mkOrb(id) {
+  const el = document.createElement('div');
+  el.className = 'orb c' + colorIdx(id); el.innerHTML = '<span>' + id + '</span>'; return el;
+}
+/* The board sizes itself to whatever space the stage has, so everything always fits. */
+function boardMetrics() {
+  const aw = stage.clientWidth || 300, ah = stage.clientHeight || 400;
+  const sH = (ah - 44) / 9.12, sW = (aw - 48) / 5;
+  const s = Math.floor(clamp(Math.min(sH, sW), 18, 84));
+  const gap = Math.max(4, Math.round(s * .16)), d = Math.round(s * 2), top = 32;
+  const bw = 2 * d + s + 44, bh = top + 8 * s + 7 * gap + 10;
+  BM = { bw, s, gap, top, bh, x0: bw / 2 - d, x1: bw / 2 + d };
+  board.style.width = bw + 'px'; board.style.height = bh + 'px'; board.style.setProperty('--s', s + 'px');
+}
+const posOf = idx => { const col = idx < 8 ? 0 : 1, row = idx % 8; return { x: (col ? BM.x1 : BM.x0) - BM.s / 2, y: BM.top + row * (BM.s + BM.gap) }; };
+const tf = (x, y, s) => 'translate3d(' + x + 'px,' + y + 'px,0) scale(' + (s === undefined ? 1 : s) + ')';
+function placePlates() {
+  board.querySelectorAll('.plate').forEach((p, i) => {
+    const x = i ? BM.x1 : BM.x0, w = BM.s + 30;
+    p.style.left = (x - w / 2) + 'px'; p.style.width = w + 'px'; p.style.height = BM.bh + 'px';
+  });
+}
+function heroScale() { return Math.min(3.6, Math.min(BM.bw, BM.bh) * .62 / BM.s); }
+function buildBoard() {
+  board.innerHTML = ''; G.hero = null; boardMetrics();
+  ['LEFT', 'RIGHT'].forEach(n => { const p = document.createElement('div'); p.className = 'plate'; p.innerHTML = '<span>' + n + '</span>'; board.appendChild(p); });
+  placePlates();
+  START.forEach(id => { const el = mkOrb(id); el.style.transform = tf(BM.bw / 2 - BM.s / 2, BM.bh / 2 - BM.s / 2, 0); board.appendChild(el); orbs[id] = el; });
+  void board.offsetWidth;
+  G.state.forEach((id, idx) => {
+    const el = orbs[id], p = posOf(idx);
+    el.style.transition = 'transform .9s cubic-bezier(.2,.9,.25,1), opacity .6s ease';
+    el.style.transitionDelay = (idx * 45) + 'ms';
+    el.style.transform = tf(p.x, p.y, 1);
+  });
+}
+function refit() {                       // called when the stage changes size (rotate, resize, toolbar show/hide)
+  if (!BM || !$('sPlay').classList.contains('show')) return;
+  boardMetrics(); placePlates();
+  G.state.forEach((id, idx) => {
+    const el = orbs[id]; if (!el) return;
+    el.style.transition = 'none'; el.style.transitionDelay = '0ms';
+    if (G.hero === id) el.style.transform = tf(BM.bw / 2 - BM.s / 2, BM.bh / 2 - BM.s / 2, heroScale());
+    else { const p = posOf(idx); el.style.transform = tf(p.x, p.y, 1); }
+  });
+}
+async function shuffleTo(ns) {
+  const cx = BM.bw / 2 - BM.s / 2, cy = BM.bh / 2 - BM.s / 2;
+  START.forEach(id => {
+    const el = orbs[id], j = () => (Math.random() - .5) * BM.s * .8;
+    el.style.transitionDelay = '0ms';
+    el.style.transition = 'transform .5s cubic-bezier(.5,0,.8,.4), opacity .6s ease';
+    el.style.transform = tf(cx + j(), cy + j(), .55);
+  });
+  await sleep(540);
+  ns.forEach((id, idx) => {
+    const el = orbs[id], p = posOf(idx);
+    el.style.transition = 'transform .75s cubic-bezier(.2,.8,.2,1), opacity .6s ease';
+    el.style.transitionDelay = (idx * 28) + 'ms';
+    el.style.transform = tf(p.x, p.y, 1);
+  });
+  await sleep(750 + 16 * 28 + 60);
+  START.forEach(id => { orbs[id].style.transitionDelay = '0ms'; });
+}
+function setDots(n) {
+  const d = $('dots');
+  if (!d.children.length) ['1', '2', '3', '✦'].forEach(t => { const x = document.createElement('div'); x.className = 'dot'; x.textContent = t; d.appendChild(x); });
+  [...d.children].forEach((x, i) => { x.classList.toggle('done', i < n); x.classList.toggle('now', i === n); });
+}
+function mkBtn(text, cls, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = text; b.onclick = fn; return b; }
+function setActions(...btns) { const A = $('actions'); A.innerHTML = ''; btns.forEach(b => A.appendChild(b)); }
+function setText(t, s, html) { if (html) $('qTitle').innerHTML = t; else $('qTitle').textContent = t; $('qSub').textContent = s || ''; }
+
+function ui(phase) {
+  G.phase = phase;
+  if (phase === 'think') {
+    setText('Choose your number', 'Silently pick ONE orb and hold it in your mind. Don’t tap it. Don’t say it.');
+    setActions(mkBtn('I’m ready', '', () => ui('round')));
+  } else if (phase === 'round') {
+    setText('Which column is it in?', 'Shuffle ' + (G.answers.length + 1) + ' of 3. Answer honestly and I’ll read the rest.');
+    setActions(mkBtn('◀  LEFT', 'side', () => answer('L')), mkBtn('RIGHT  ▶', 'side', () => answer('R')));
+  } else if (phase === 'final') {
+    setText('One last look…', 'After that shuffle, which column is your number in now?');
+    setActions(mkBtn('◀  LEFT', 'side', () => answer('L')), mkBtn('RIGHT  ▶', 'side', () => answer('R')));
+  }
+}
+function startGame() {
+  G.state = START.slice(); G.answers = []; G.busy = false;
+  show('sPlay'); setDots(0); buildBoard(); ui('think');
+}
+async function answer(c) {
+  if (G.busy) return; G.busy = true;
+  document.querySelectorAll('#actions .btn').forEach(b => b.disabled = true);
+  if (G.phase === 'round') {
+    G.answers.push(c);
+    setText('Reading your mind…', '');
+    const ns = step(G.state, c); await shuffleTo(ns); G.state = ns;
+    const n = G.answers.length; setDots(n); G.busy = false; ui(n < 3 ? 'round' : 'final');
+  } else if (G.phase === 'final') {
+    await reveal(c); G.busy = false;
+  }
+}
+async function reveal(c) {
+  const id = G.state[c === 'L' ? TL : TR];
+  setText('Reading your mind…', ''); setDots(4);
+  await sleep(900);
+  START.forEach(o => { if (o !== id) orbs[o].classList.add('dim'); });
+  const hero = orbs[id];
+  G.hero = id; hero.classList.add('hero'); hero.style.transitionDelay = '0ms';
+  hero.style.transition = 'transform 1.1s cubic-bezier(.2,.9,.2,1), opacity .6s ease';
+  hero.style.transform = tf(BM.bw / 2 - BM.s / 2, BM.bh / 2 - BM.s / 2, heroScale());
+  await sleep(1100);
+  const r = hero.getBoundingClientRect(); burst(burstsB, r.left + r.width / 2, r.top + r.height / 2, 80);
+  G.phase = 'done';
+  setText('Your number is <b>' + id + '</b>', 'Did I read your mind?', true);
+  setActions(mkBtn('Yes! ✨', 'good', () => verdict(true)), mkBtn('Not quite', 'warn', () => verdict(false)));
+}
+function verdict(ok) {
+  $('qSub').textContent = ok ? '✨ The orbs always know. Try it on a friend!' : 'It only works if every answer is honest. Watch which column your orb is in after each shuffle.';
+  setActions(mkBtn('Play again', '', startGame), mkBtn('▶ Intro', 'ghost', () => playIntro()));
+}
+
+/* start-screen decoration */
+(() => { const s = $('strip'); START.forEach(id => s.appendChild(mkOrb(id))); })();
+
+/* modal */
+const modal = $('modal');
+const openModal = () => modal.classList.add('show'), closeModal = () => modal.classList.remove('show');
+
+/* wiring */
+$('begin').onclick = startGame;
+$('replay').onclick = () => playIntro();
+$('skip').onclick = () => endIntro();
+$('help').onclick = openModal;
+$('closeModal').onclick = closeModal;
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (modal.classList.contains('show')) closeModal(); else endIntro(); return; }
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !G.busy && (G.phase === 'round' || G.phase === 'final') && !introActive && !modal.classList.contains('show')) answer(e.key === 'ArrowLeft' ? 'L' : 'R');
+});
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', () => setTimeout(onResize, 120));
+if ('ResizeObserver' in window) new ResizeObserver(() => refit()).observe(stage);
+$('verify').onclick = () => {
+  let pass = 0;
+  for (let s = 1; s <= 16; s++) {
+    let st = START.slice();
+    for (let k = 0; k < 3; k++) st = step(st, st.indexOf(s) < 8 ? 'L' : 'R');
+    const i = st.indexOf(s), col = i === TL ? 'L' : (i === TR ? 'R' : null);
+    if (col && st[col === 'L' ? TL : TR] === s) pass++;
+  }
+  $('vOut').textContent = pass + ' of 16 numbers identified correctly' + (pass === 16 ? ' ✓' : '');
+};
+
+window.__mr = { step, STATES, ANS, FINAL_COL, HERO, DURATION, renderIntro, M, TL, TR, START, G, answer, startGame, endIntro };
+
+resize();
+dustB = makeDust(dustCount(44));
+requestAnimationFrame(bgLoop);
+playIntro();
+})();
+</script>
+</body>
+</html>
